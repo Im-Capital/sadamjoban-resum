@@ -1,239 +1,233 @@
 /**
- * Three.js Scene Setup
- * Creates an immersive 3D particle background with floating geometric shapes
+ * Mr. Capital - Three.js Background Scene
+ * Advanced particle system with interactive elements
  */
 
-// Scene variables
-let scene, camera, renderer;
-let particles, geometry, material;
-let floatingShapes = [];
-let mouseX = 0, mouseY = 0;
-let targetX = 0, targetY = 0;
+// ============================================
+// Scene Setup
+// ============================================
+const canvas = document.getElementById('webgl-canvas');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ 
+    canvas: canvas, 
+    alpha: true, 
+    antialias: true 
+});
 
-// Initialize the Three.js scene
-function initThreeScene() {
-    const canvas = document.getElementById('webgl-canvas');
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// ============================================
+// Particles System
+// ============================================
+const particlesGeometry = new THREE.BufferGeometry();
+const particlesCount = 2000;
+
+const positions = new Float32Array(particlesCount * 3);
+const colors = new Float32Array(particlesCount * 3);
+const sizes = new Float32Array(particlesCount);
+
+const colorPalette = [
+    new THREE.Color('#4169E1'), // Royal Blue
+    new THREE.Color('#0080FF'), // Electric Blue
+    new THREE.Color('#00FFFF'), // Neon Cyan
+    new THREE.Color('#8B5CF6')  // Purple
+];
+
+for (let i = 0; i < particlesCount * 3; i += 3) {
+    // Positions - spread across a wide area
+    positions[i] = (Math.random() - 0.5) * 100;
+    positions[i + 1] = (Math.random() - 0.5) * 100;
+    positions[i + 2] = (Math.random() - 0.5) * 100;
     
-    // Create scene
-    scene = new THREE.Scene();
+    // Colors - random from palette
+    const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+    colors[i] = color.r;
+    colors[i + 1] = color.g;
+    colors[i + 2] = color.b;
     
-    // Create camera
-    camera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000
-    );
-    camera.position.z = 50;
-    
-    // Create renderer
-    renderer = new THREE.WebGLRenderer({
-        canvas: canvas,
-        antialias: true,
-        alpha: true
-    });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    
-    // Create particles
-    createParticles();
-    
-    // Create floating shapes
-    createFloatingShapes();
-    
-    // Add lights
-    addLights();
-    
-    // Event listeners
-    window.addEventListener('resize', onWindowResize);
-    document.addEventListener('mousemove', onMouseMove);
-    
-    // Start animation loop
-    animate();
+    // Sizes
+    sizes[i / 3] = Math.random() * 2;
 }
+
+particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+// Particle material
+const particlesMaterial = new THREE.PointsMaterial({
+    size: 0.15,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
 
 // Create particle system
-function createParticles() {
-    const particleCount = 2000;
-    geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
+const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+scene.add(particles);
+
+// ============================================
+// Floating Geometric Shapes
+// ============================================
+const shapes = [];
+const shapeGeometries = [
+    new THREE.TetrahedronGeometry(1, 0),
+    new THREE.OctahedronGeometry(1, 0),
+    new THREE.IcosahedronGeometry(1, 0)
+];
+
+const shapeMaterial = new THREE.MeshBasicMaterial({
+    color: 0x4169E1,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.3
+});
+
+for (let i = 0; i < 15; i++) {
+    const geometry = shapeGeometries[Math.floor(Math.random() * shapeGeometries.length)];
+    const mesh = new THREE.Mesh(geometry, shapeMaterial.clone());
     
-    const colorPalette = [
-        new THREE.Color(0x4169E1), // Royal Blue
-        new THREE.Color(0x0080FF), // Electric Blue
-        new THREE.Color(0x00FFFF), // Neon Cyan
-        new THREE.Color(0x8B5CF6)  // Purple
-    ];
+    mesh.position.x = (Math.random() - 0.5) * 50;
+    mesh.position.y = (Math.random() - 0.5) * 50;
+    mesh.position.z = (Math.random() - 0.5) * 30 - 10;
     
-    for (let i = 0; i < particleCount * 3; i += 3) {
-        // Positions - spread across a wide area
-        positions[i] = (Math.random() - 0.5) * 200;
-        positions[i + 1] = (Math.random() - 0.5) * 200;
-        positions[i + 2] = (Math.random() - 0.5) * 200;
-        
-        // Colors - randomly select from palette
-        const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-        colors[i] = color.r;
-        colors[i + 1] = color.g;
-        colors[i + 2] = color.b;
-    }
+    mesh.rotation.x = Math.random() * Math.PI;
+    mesh.rotation.y = Math.random() * Math.PI;
     
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    mesh.userData = {
+        rotationSpeed: {
+            x: (Math.random() - 0.5) * 0.02,
+            y: (Math.random() - 0.5) * 0.02
+        },
+        floatSpeed: Math.random() * 0.5 + 0.5,
+        floatOffset: Math.random() * Math.PI * 2
+    };
     
-    material = new THREE.PointsMaterial({
-        size: 0.5,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.8,
-        sizeAttenuation: true
-    });
+    // Random color variation
+    mesh.material.color = colorPalette[Math.floor(Math.random() * colorPalette.length)].clone();
+    mesh.material.opacity = Math.random() * 0.3 + 0.1;
     
-    particles = new THREE.Points(geometry, material);
-    scene.add(particles);
+    shapes.push(mesh);
+    scene.add(mesh);
 }
 
-// Create floating geometric shapes
-function createFloatingShapes() {
-    const shapeCount = 15;
-    const geometries = [
-        new THREE.IcosahedronGeometry(1, 0),
-        new THREE.OctahedronGeometry(1, 0),
-        new THREE.TetrahedronGeometry(1, 0),
-        new THREE.BoxGeometry(1, 1, 1)
-    ];
-    
-    const materials = [
-        new THREE.MeshPhongMaterial({
-            color: 0x4169E1,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.6
-        }),
-        new THREE.MeshPhongMaterial({
-            color: 0x0080FF,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.6
-        }),
-        new THREE.MeshPhongMaterial({
-            color: 0x00FFFF,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.6
-        })
-    ];
-    
-    for (let i = 0; i < shapeCount; i++) {
-        const geometry = geometries[Math.floor(Math.random() * geometries.length)];
-        const material = materials[Math.floor(Math.random() * materials.length)];
-        const mesh = new THREE.Mesh(geometry, material);
-        
-        // Random position
-        mesh.position.x = (Math.random() - 0.5) * 100;
-        mesh.position.y = (Math.random() - 0.5) * 100;
-        mesh.position.z = (Math.random() - 0.5) * 50 + 20;
-        
-        // Random scale
-        const scale = Math.random() * 2 + 0.5;
-        mesh.scale.set(scale, scale, scale);
-        
-        // Random rotation speed
-        mesh.rotationSpeed = {
-            x: Math.random() * 0.02,
-            y: Math.random() * 0.02,
-            z: Math.random() * 0.02
-        };
-        
-        // Random float speed
-        mesh.floatSpeed = Math.random() * 0.05 + 0.02;
-        mesh.floatOffset = Math.random() * Math.PI * 2;
-        
-        scene.add(mesh);
-        floatingShapes.push(mesh);
-    }
-}
+// ============================================
+// Lighting
+// ============================================
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-// Add lighting to the scene
-function addLights() {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    // Point lights for glow effects
-    const pointLight1 = new THREE.PointLight(0x4169E1, 1, 100);
-    pointLight1.position.set(30, 30, 30);
-    scene.add(pointLight1);
-    
-    const pointLight2 = new THREE.PointLight(0x00FFFF, 1, 100);
-    pointLight2.position.set(-30, -30, 30);
-    scene.add(pointLight2);
-    
-    const pointLight3 = new THREE.PointLight(0x8B5CF6, 1, 100);
-    pointLight3.position.set(0, 30, -30);
-    scene.add(pointLight3);
-}
+const pointLight1 = new THREE.PointLight(0x4169E1, 1, 100);
+pointLight1.position.set(10, 10, 10);
+scene.add(pointLight1);
 
-// Handle window resize
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
+const pointLight2 = new THREE.PointLight(0x00FFFF, 0.5, 100);
+pointLight2.position.set(-10, -10, 10);
+scene.add(pointLight2);
 
-// Handle mouse movement for parallax effect
-function onMouseMove(event) {
-    mouseX = (event.clientX - window.innerWidth / 2) * 0.05;
-    mouseY = (event.clientY - window.innerHeight / 2) * 0.05;
-}
+// ============================================
+// Mouse Interaction
+// ============================================
+let mouseX = 0;
+let mouseY = 0;
+let targetX = 0;
+let targetY = 0;
 
-// Animation loop
+const windowHalfX = window.innerWidth / 2;
+const windowHalfY = window.innerHeight / 2;
+
+document.addEventListener('mousemove', (event) => {
+    mouseX = (event.clientX - windowHalfX) * 0.001;
+    mouseY = (event.clientY - windowHalfY) * 0.001;
+});
+
+// ============================================
+// Camera Position
+// ============================================
+camera.position.z = 30;
+
+// ============================================
+// Animation Loop
+// ============================================
+const clock = new THREE.Clock();
+
 function animate() {
     requestAnimationFrame(animate);
     
-    // Smooth mouse following
+    const elapsedTime = clock.getElapsedTime();
+    
+    // Smooth mouse movement
     targetX += (mouseX - targetX) * 0.05;
     targetY += (mouseY - targetY) * 0.05;
     
-    // Rotate particles slowly
-    if (particles) {
-        particles.rotation.y += 0.0005;
-        particles.rotation.x += 0.0002;
-        
-        // Add subtle wave motion to particles
-        const positions = particles.geometry.attributes.position.array;
-        const time = Date.now() * 0.0005;
-        
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i + 1] += Math.sin(time + positions[i] * 0.05) * 0.02;
-        }
-        
-        particles.geometry.attributes.position.needsUpdate = true;
+    // Rotate particles based on mouse
+    particles.rotation.y += 0.001;
+    particles.rotation.x = targetY * 0.5;
+    particles.rotation.z = targetX * 0.5;
+    
+    // Animate particles wave effect
+    const positions = particlesGeometry.attributes.position.array;
+    for (let i = 0; i < particlesCount; i++) {
+        const i3 = i * 3;
+        positions[i3 + 1] += Math.sin(elapsedTime + positions[i3]) * 0.02;
     }
+    particlesGeometry.attributes.position.needsUpdate = true;
     
     // Animate floating shapes
-    floatingShapes.forEach((shape, index) => {
-        // Rotation
-        shape.rotation.x += shape.rotationSpeed.x;
-        shape.rotation.y += shape.rotationSpeed.y;
-        shape.rotation.z += shape.rotationSpeed.z;
+    shapes.forEach((shape, index) => {
+        shape.rotation.x += shape.userData.rotationSpeed.x;
+        shape.rotation.y += shape.userData.rotationSpeed.y;
         
         // Floating motion
-        shape.position.y += Math.sin(time + shape.floatOffset) * shape.floatSpeed;
-        
-        // Parallax effect based on mouse position
-        shape.position.x += (targetX - shape.position.x * 0.01) * 0.001;
-        shape.position.y += (targetY - shape.position.y * 0.01) * 0.001;
+        shape.position.y += Math.sin(elapsedTime * shape.userData.floatSpeed + shape.userData.floatOffset) * 0.05;
     });
     
-    // Camera movement based on mouse
-    camera.position.x += (targetX - camera.position.x) * 0.02;
-    camera.position.y += (-targetY - camera.position.y) * 0.02;
-    camera.lookAt(scene.position);
+    // Animate lights
+    pointLight1.position.x = Math.sin(elapsedTime * 0.5) * 20;
+    pointLight1.position.y = Math.cos(elapsedTime * 0.5) * 20;
+    
+    pointLight2.position.x = Math.cos(elapsedTime * 0.3) * 20;
+    pointLight2.position.z = Math.sin(elapsedTime * 0.3) * 20;
     
     renderer.render(scene, camera);
 }
 
-// Export initialization function
-window.initThreeScene = initThreeScene;
+animate();
+
+// ============================================
+// Handle Window Resize
+// ============================================
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
+
+// ============================================
+// Performance Optimization - Reduce particles on mobile
+// ============================================
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+if (isMobile()) {
+    // Reduce particle count for better performance
+    particlesCount = 1000;
+    particles.geometry.dispose();
+    particles.material.dispose();
+}
+
+// ============================================
+// Pause animation when tab is not visible
+// ============================================
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Could pause animation here for better battery life
+    }
+});
+
+console.log('%cThree.js Scene Initialized', 'color: #00FFFF; font-weight: bold;');
